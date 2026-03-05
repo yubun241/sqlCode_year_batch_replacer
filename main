@@ -1,0 +1,148 @@
+import os
+from pathlib import Path
+
+def replace_year_range_in_sql(file_path, old_year, start_new_year, end_new_year, output_dir="../result"):
+    """
+    SQLファイルの年月を連番で置き換えて都度保存する
+    
+    Args:
+        file_path: 読み込むSQLファイルのパス
+        old_year: 置き換え前の年月（例: 202604）
+        start_new_year: 置き換え後の開始年月（例: 202605）
+        end_new_year: 置き換え後の終了年月（例: 202703）
+        output_dir: 保存先ディレクトリ（デフォルト: ../result）
+    """
+    
+    # ファイルが存在するか確認
+    if not os.path.exists(file_path):
+        print(f"エラー: ファイルが見つかりません - {file_path}")
+        return
+    
+    # ファイルを読み込む
+    with open(file_path, 'r', encoding='utf-8') as file:
+        original_content = file.read()
+    
+    file_stem = Path(file_path).stem
+    
+    # 年月の連番を生成
+    year_list = generate_year_list(start_new_year, end_new_year)
+    
+    for new_year in year_list:
+        # 内容を置き換える
+        updated_content = original_content.replace(old_year, new_year)
+        
+        # 置き換えが行われたか確認
+        if updated_content == original_content:
+            continue
+        
+        # 保存先ディレクトリを作成
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        # 保存ファイル名を生成
+        new_file_name = f"{file_stem}_{new_year}.sql"
+        new_file_path = output_path / new_file_name
+        
+        # ファイルに保存
+        with open(new_file_path, 'w', encoding='utf-8') as file:
+            file.write(updated_content)
+        
+        print(f"✓ 保存完了: {new_file_name} ({old_year} → {new_year})")
+
+def generate_year_list(start_year, end_year):
+    """
+    開始年月から終了年月までの連番を生成
+    
+    Args:
+        start_year: 開始年月（YYYYMM形式の文字列）
+        end_year: 終了年月（YYYYMM形式の文字列）
+    
+    Returns:
+        [202605, 202606, ..., 202703] のリスト
+    """
+    
+    year_list = []
+    
+    # 文字列をYYYY年MM月に分解
+    start_y = int(start_year[:4])
+    start_m = int(start_year[4:6])
+    
+    end_y = int(end_year[:4])
+    end_m = int(end_year[4:6])
+    
+    current_y = start_y
+    current_m = start_m
+    
+    while True:
+        current_year_str = f"{current_y:04d}{current_m:02d}"
+        year_list.append(current_year_str)
+        
+        # 終了条件
+        if current_y == end_y and current_m == end_m:
+            break
+        
+        # 月を進める
+        current_m += 1
+        if current_m > 12:
+            current_m = 1
+            current_y += 1
+    
+    return year_list
+
+def process_all_sql_files(input_dir="../data", old_year="202604", start_new_year="202605", end_new_year="202703", output_dir="../result"):
+    """
+    指定したディレクトリ内のすべてのSQLファイルを処理する
+    
+    Args:
+        input_dir: 入力ディレクトリ（デフォルト: ../data）
+        old_year: 置き換え前の年月（例: 202604）
+        start_new_year: 置き換え後の開始年月（例: 202605）
+        end_new_year: 置き換え後の終了年月（例: 202703）
+        output_dir: 保存先ディレクトリ（デフォルト: ../result）
+    """
+    
+    input_path = Path(input_dir)
+    
+    # ディレクトリが存在するか確認
+    if not input_path.exists():
+        print(f"エラー: ディレクトリが見つかりません - {input_dir}")
+        return
+    
+    # SQLファイルを取得
+    sql_files = list(input_path.glob("*.sql"))
+    
+    if not sql_files:
+        print(f"エラー: {input_dir} に SQLファイルが見つかりません")
+        return
+    
+    print(f"✓ 処理開始")
+    print(f"  入力ディレクトリ: {input_dir}")
+    print(f"  出力ディレクトリ: {output_dir}")
+    print(f"  対象ファイル数: {len(sql_files)}")
+    print(f"  置き換え前: {old_year}")
+    print(f"  置き換え対象: {start_new_year} ～ {end_new_year}")
+    print(f"  生成ファイル数: {len(sql_files) * len(generate_year_list(start_new_year, end_new_year))}\n")
+    
+    # 各SQLファイルを処理
+    for sql_file in sorted(sql_files):
+        print(f"\n【処理中】{sql_file.name}")
+        replace_year_range_in_sql(
+            sql_file,
+            old_year,
+            start_new_year,
+            end_new_year,
+            output_dir
+        )
+    
+    print(f"\n\n✓ すべてのファイルが処理完了しました")
+    print(f"  保存先: {output_dir}")
+
+# 使用例
+if __name__ == "__main__":
+    process_all_sql_files(
+        input_dir="../data",
+        old_year="202604",
+        start_new_year="202605",
+        end_new_year="202703",
+        output_dir="../result"
+    )
